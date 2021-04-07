@@ -7,6 +7,15 @@ type Beer struct {
 	Style BeerStyle `json:"style"`
 }
 
+/* Table Beer, created using sqlite3
+CREATE TABLE beer (
+   id INTEGER PRIMARY KEY AUTOINCREMENT,
+   name text NOT NULL,
+   type integer NOT NULL,
+   style integer not null
+);
+*/
+
 type BeerType int
 
 const (

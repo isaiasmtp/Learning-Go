@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
 	"github.com/isaiasmtp/Learning-Go/core/beer"
+	"github.com/isaiasmtp/Learning-Go/web/handlers"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -22,21 +23,30 @@ func main() {
 	defer db.Close()
 	service := beer.NewService(db)
 	r := mux.NewRouter()
-
-	//handlers
+	//middlewares - código que vai ser executado em todas as requests
+	//aqui podemos colocar logs, inclusão e validação de cabeçalhos, etc
 	n := negroni.New(
 		negroni.NewLogger(),
 	)
+	//handlers
+	handlers.MakeBeerHandlers(r, n, service)
 
-	r.Handle("/v1/beer", n.With(
-		negroni.Wrap(hello(service)),
+	//static files
+	fileServer := http.FileServer(http.Dir("./web/static"))
+	r.PathPrefix("/static/").Handler(n.With(
+		negroni.Wrap(http.StripPrefix("/static/", fileServer)),
 	)).Methods("GET", "OPTIONS")
+
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// used to health check, will return 200
+	})
+
 	http.Handle("/", r)
 
 	srv := &http.Server{
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
-		Addr:         ":4000",
+		Addr:         ":" + os.Getenv("HTTP_PORT"),
 		Handler:      http.DefaultServeMux,
 		ErrorLog:     log.New(os.Stderr, "logger: ", log.Lshortfile),
 	}
@@ -45,13 +55,4 @@ func main() {
 		log.Fatal(err)
 	}
 
-}
-
-func hello(service beer.UseCase) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		all, _ := service.GetAll()
-		for _, i := range all {
-			fmt.Println(i)
-		}
-	})
 }
